@@ -4,6 +4,7 @@ from threadpool import *
 from scipy.ndimage.measurements import label
 from threading import Thread, Lock
 
+
 class Processor:
 
     def __init__(self, heatmap_threshold=0):
@@ -41,7 +42,7 @@ class Processor:
     #     finally:
     #         self.lock.release()
 
-    def process_frame(self, image, return_heat_map = False):
+    def process_frame(self, image, output_image=None, return_heat_map=False, process_as_video=True):
         norm_image = cv2.normalize(image, None, 0.0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
 
         heat_map = np.zeros_like(image[:, :, 0]).astype(np.float)
@@ -52,20 +53,28 @@ class Processor:
 
         heat_map = self._apply_threshold(heat_map)
         labels = label(heat_map)
-        draw_labels = None
 
-        if self.display_heat_map is None:
-            self.display_heat_map = np.zeros_like(image[:, :, 0]).astype(np.float)
+        if process_as_video:
+            # if video examine multiple frames to help filter
+            # false positives.
+            if self.display_heat_map is None:
+                self.display_heat_map = np.zeros_like(image[:, :, 0]).astype(np.float)
 
-        #keep track of previous detections using a heatmap
-        self.display_heat_map[self.display_heat_map > 0] -= 1
-        self.display_heat_map[(labels[0] > 0) & (self.display_heat_map <= 20)] += 2
+            #keep track of previous detections using a heatmap
+            # remove heat if we don't have a current detection at a given location.
+            self.display_heat_map[self.display_heat_map > 0] -= 1
+            self.display_heat_map[(labels[0] > 0) & (self.display_heat_map <= 20)] += 2
 
-        mask = np.zeros_like(self.display_heat_map)
-        mask[self.display_heat_map > 6] = 1
-        draw_labels = label(mask)
+            # mask out areas that don't have enough heat (history of detections)
+            mask = np.zeros_like(self.display_heat_map)
+            mask[self.display_heat_map > 8] = 1
+            draw_labels = label(mask)
+        else:
+            draw_labels = labels
 
-        # labeled_image = self.draw_labeled_bboxes(image, labels)
+        # render to our output buffer if we have one.
+        if output_image is not None:
+            image = output_image
 
         labeled_image = self.draw_labeled_bboxes(image, draw_labels, color=(0, 255, 0), thick=2)
 

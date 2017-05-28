@@ -8,8 +8,7 @@ class ObjectDetector:
                  x_start_stop=[None, None],
                  y_start_stop=[None, None],
                  xy_window=(64, 64),
-                 xy_overlap=(0.5, 0.5),
-                 heatmap_threshold=0):
+                 xy_overlap=(0.5, 0.5)):
         self.classifier = classifier
         self.feature_extractor = feature_extractor
         self.x_start_stop = x_start_stop
