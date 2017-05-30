@@ -42,7 +42,7 @@ class Processor:
     #     finally:
     #         self.lock.release()
 
-    def process_frame(self, image, output_image=None, return_heat_map=False, process_as_video=True):
+    def process_frame(self, image, output_image=None, return_heat_map=False, return_hot_windows=False, process_as_video=True):
         norm_image = cv2.normalize(image, None, 0.0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
 
         heat_map = np.zeros_like(image[:, :, 0]).astype(np.float)
@@ -78,10 +78,16 @@ class Processor:
 
         labeled_image = self.draw_labeled_bboxes(image, draw_labels, color=(0, 255, 0), thick=2)
 
+        ret_val = [labeled_image]
+
         if return_heat_map:
-            return labeled_image, heat_map
-        else:
-            return labeled_image
+            ret_val.append(heat_map)
+
+        if return_hot_windows:
+            hot_window_image = self.draw_boxes(image, hot_windows)
+            ret_val.append(hot_window_image)
+
+        return tuple(ret_val)
 
     def draw_labeled_bboxes(self, img, labels, color=(0, 0, 255),thick=6):
         # Iterate through all detected cars

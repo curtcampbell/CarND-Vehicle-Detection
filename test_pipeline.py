@@ -1,3 +1,6 @@
+from camera import *
+from lane_detector import *
+
 from processor import *
 from classifier import *
 from detector import *
@@ -15,6 +18,7 @@ def plot(image, title=None, cmap=None):
     if title is not None:
         plt.title(title)
     plt.imshow(image, cmap=cmap)
+
 
 
 # Define a function to draw bounding boxes
@@ -47,6 +51,10 @@ def draw_labeled_bboxes(img, labels):
 
 def main():
 
+    calib = CameraCalibrator()
+    calib.load_calibaration("cam_calib.p")
+    lane_detector = LaneDetector(calib)
+
     # setup processing pipeline
     classifier = CarClassifier('car_classifier_model.pkl')
     feature_extractor = VehicleFeatureExtractor.load('feature_extractor_settings.pkl')
@@ -65,11 +73,11 @@ def main():
     #                                       x_start_stop=(550, 1020),
     #                                       y_start_stop=(375, 500)))
 
-    #image 1 and 2
+    # image 1 and 2
     processor.add_detector(ObjectDetector(classifier, feature_extractor,
                                           xy_window=(100, 100),
                                           xy_overlap=(0.75, 0.75),
-                                          y_start_stop=(400, 720)))
+                                          y_start_stop=(360, 535)))
 
     # image 3
     processor.add_detector(ObjectDetector(classifier, feature_extractor,
@@ -85,25 +93,32 @@ def main():
                                           x_start_stop=(192,1280),
                                           y_start_stop=(350, 555)))
 
+    def process_frame(image):
+        output_image = lane_detector.process_frame(image)
+        output_image = processor.process_frame(image, output_image)
+        return output_image
 
     # Process image
     # test_file_name = '.\\Capture\\capture-8.png'
 
-    # test_file_name = '.\\test_images\\test6.jpg'
-    # in_image = mpimg.imread(test_file_name)
-    # norm_image = cv2.normalize(in_image, None, 0.0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-    # out_image, heat_map = processor.process_frame(norm_image, return_heat_map=True)
-    # plot(out_image)
-    # plot(heat_map, cmap='hot')
-    # plt.show()
+    test_file_name = '.\\test_images\\test1.jpg'
+    in_image = mpimg.imread(test_file_name)
+    norm_image = cv2.normalize(in_image, None, 0.0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    out_image, heat_map, hot_windows = processor.process_frame(norm_image, return_heat_map=True, return_hot_windows=True, process_as_video=False)
+    plot(in_image, "Input frame")
+    plot(out_image, "Final detection")
+    plot(heat_map, "Heat map", cmap='hot')
+    plot(hot_windows, "Hot windows")
+    plt.show()
 
-    # Process clips
-    # clip = VideoFileClip('.\\test_video.mp4')
-    clip = VideoFileClip('.\\project_video.mp4')
-    output_clip = clip.fl_image(processor.process_frame)
-    # output_clip = clip.fl_image(detector.process_frame)
-
-    output_clip.write_videofile('.\\project_video_output.mp4', audio=False)
+    # # Process clips
+    # # clip = VideoFileClip('.\\test_video.mp4')
+    # clip = VideoFileClip('.\\project_video.mp4')
+    # # output_clip = clip.subclip(0, 4).fl_image(processor.process_frame)
+    # # output_clip = clip.fl_image(processor.process_frame)
+    # output_clip = clip.fl_image(process_frame)
+    #
+    # output_clip.write_videofile('.\\project_video_output.mp4', audio=False)
 
 
 if __name__ == "__main__":

@@ -1,8 +1,3 @@
-##Writeup Template
-###You can use this file as a template for your writeup if you want to submit it as a markdown file, but feel free to use some other method and submit a pdf if you prefer.
-
----
-
 **Vehicle Detection Project**
 
 The goals / steps of this project are the following:
@@ -15,14 +10,11 @@ The goals / steps of this project are the following:
 * Estimate a bounding box for vehicles detected.
 
 [//]: # (Image References)
-[image1]: ./examples/car_not_car.png
-[image2]: ./examples/HOG_example.jpg
-[image3]: ./examples/sliding_windows.jpg
-[image4]: ./examples/sliding_window.jpg
-[image5]: ./examples/bboxes_and_heat.png
-[image6]: ./examples/labels_map.png
-[image7]: ./examples/output_bboxes.png
-[video1]: ./project_video.mp4
+[image1]: ./output_images/input-frame.png
+[image2]: ./output_images/hot-windows.png
+[image3]: ./output_images/heat-map.png
+[image4]: ./output_images/final-detection.png
+[video1]: ./project_video_output.mp4
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/513/view) Points
 ###Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
@@ -39,7 +31,7 @@ You're reading it!
 ####1. Explain how (and identify where in your code) you extracted HOG features from the training images.
 
 In `features_extractor.py` I defined a class called `VehicleFeatureExtractor`. This class has a number of methods
-that extracting various feature from an image.  HOG features in particular are extracted in the `get_hog_features`
+that extract various feature from an image.  HOG features in particular are extracted in the `get_hog_features`
  method around line 49.  The code snippet is below.
  
  ```python
@@ -65,7 +57,7 @@ that extracting various feature from an image.  HOG features in particular are e
 
 ```
 
-  Around line 116 the `extract_features()` method is defined that takes a list of files and extract freatures for 
+  Around line 116 the `extract_features()` method is defined that takes a list of files and extract features for 
   every file.
 ```python
     def extract_features(self, imgs):
@@ -92,7 +84,7 @@ In on line 75 of `train_classifier.py` this method is called on the training set
 I settled on my choice of HOG and other feature parameters experimentally.  An intuative approach may have been to look 
 at plots of HOG and other  features and then choose parameters based on my perceptions at the time.  I decided however,
 I would implement the pipline first and then tune parameters based on the behavior of the system at run time.  This 
-way my assumptions would be validated by actual running code. During development, I did however plot images for 
+way, my assumptions would be validated by actual running code. During development, I did however plot images for 
 debugging purposes and to convince myself the system was doing what I thought it should be doing.  
 In the end I chose the following set of parameters.
 
@@ -119,7 +111,7 @@ I chose to use a support vector machine (SVM) with a linear kernel.  SKLearn has
 for this type of classifier.  I started out using the `svm.SVC` classifier.  As it turns out however, this classifier is 
 relatively slow when training larger data sets.  After a day of training, I looked for other options and found `svm.LinearSVC()`.
 This classifier trained in a reasonable amount of time.  In my code, the `CarClassifier` class in `classifier.py` is 
-a thin wrapper around called to `svm.SVC`.  It has methods for fitting the classifier and saving the state of the trained
+a thin wrapper around calls to `svm.SVC`.  This class has methods for fitting the classifier and saving the state of the trained
 classifier.  The entire training pipeline is implemented in `train_classifier.py`  In this file all of the training parameters 
 are specified.  The training data is loaded and fit using the SVM and the resultant model and it's parameters are 
 saved to disk.
@@ -130,7 +122,9 @@ saved to disk.
 
 The code implementing the sliding window search is found in a class called `ObjectDetector` around line 59 in `detector.py`.  
 The `ObjectDetector` class accepts a classifier and a feature extractor in its constructor.  This class can be used to 
-detect an arbitrary object depending on the classifier and feature extractor passed to it. 
+detect an arbitrary object depending on the classifier and feature extractor passed to it. The `search_windows()` method 
+in the code snippet below accepts a list of windows as input and performs the classification on each 
+window.
 
 ```python
     def search_windows(self, img, windows):
@@ -194,7 +188,7 @@ def main():
 
     # combine lane detection and vehicle detection.
     def process_frame(image):
-        output_image = lane_detector.process_frame(image)
+        ...
         output_image = processor.process_frame(image, output_image)
         return output_image
 
@@ -205,38 +199,86 @@ def main():
     output_clip.write_videofile('.\\project_video_output.mp4', audio=False)
 ```
 
-The choices for window size, scale, and overlap were all determined experimentally.  Each call to `add_detector()` adds
-a different region to search for objects.  
+The choices for window size, scale, and overlap were all determined experimentally.  In the end, I decided to create 
+three overlapping regions within th frame to search at different scales.  Each call to `add_detector()` adds
+a different region to search for objects.
+  
 ####2. Show some examples of test images to demonstrate how your pipeline is working.  What did you do to optimize the performance of your classifier?
 
-Ultimately I searched on two scales using YCrCb 3-channel HOG features plus spatially binned color and histograms of color in the feature vector, which provided a nice result.  Here are some example images:
+Below are some example images:
 
-![alt text][image4]
+![alt text][image1]
+![hot windows][image2]
+![image3]
+![image4]
 ---
 
 ### Video Implementation
 
 ####1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (somewhat wobbly or unstable bounding boxes are ok as long as you are identifying the vehicles most of the time with minimal false positives.)
-Here's a [link to my video result](./project_video.mp4)
+Here's a [link to my video result](./project_video_output.mp4)
 
 
 ####2. Describe how (and identify where in your code) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
 
-I recorded the positions of positive detections in each frame of the video.  From the positive detections I created a heatmap and then thresholded that map to identify vehicle positions.  I then used `scipy.ndimage.measurements.label()` to identify individual blobs in the heatmap.  I then assumed each blob corresponded to a vehicle.  I constructed bounding boxes to cover the area of each blob detected.  
+The `ObjectDetector.get_detections()` method returns a list of windows where the classifier classified the window to 
+contain a vehicle.  Since at time the classifier would produce false positives from time to time, I used two similar 
+techniques to filter these false positives out.
+1. Create a heat map from the detection list and then set a heat threashold.  The assumption here is that overlapping 
+windows will create a higher number of detections in a given area making that area more "hot".  False positives 
+are less likely and may be filtered out by setting an appropriate threshold.  This is done once per frame
+2. Create a second heat map that is used to track detections from frame to frame.  Here more heat is added 
+when a detection is made.  However in this case, a little heat is subtracted on every frame.  Whenever the 
+heat level reaches a certain threshold, this detection is considered valid and the `scipy.ndimage.measurements.label()`
+function is used to label contiguous areas that meet the threshold value.  These areas are then drawn onto the
+output frame.
 
-Here's an example result showing the heatmap from a series of frames of video, the result of `scipy.ndimage.measurements.label()` and the bounding boxes then overlaid on the last frame of video:
+The code for the steps outlined above car found in the `process_frame()` at line 45 of `processor.py`
 
-### Here are six frames and their corresponding heatmaps:
+Technique 1 implemented inthe code snippet below
+```python
+    def process_frame(self, image, output_image=None, return_heat_map=False, return_hot_windows=False, process_as_video=True):
+        norm_image = cv2.normalize(image, None, 0.0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
 
-![alt text][image5]
+        heat_map = np.zeros_like(image[:, :, 0]).astype(np.float)
 
-### Here is the output of `scipy.ndimage.measurements.label()` on the integrated heatmap from all six frames:
-![alt text][image6]
+        for detector in self.detector_list:
+            hot_windows = detector.get_detections(norm_image)
+            heat_map = self._add_heat(heat_map, hot_windows)
 
-### Here the resulting bounding boxes are drawn onto the last frame in the series:
-![alt text][image7]
+        heat_map = self._apply_threshold(heat_map)
+        labels = label(heat_map)
 
+        ...
+```
 
+Technique 2 is implemented in the snippet below.  *Note - Technique 2 is only performed when analysing a series of
+frames such as in a video*
+```python
+    def process_frame(self, image, output_image=None, return_heat_map=False, return_hot_windows=False, process_as_video=True):
+
+        ...
+        
+        labels = label(heat_map)
+
+        if process_as_video:
+            # if video examine multiple frames to help filter
+            # false positives.
+            if self.display_heat_map is None:
+                self.display_heat_map = np.zeros_like(image[:, :, 0]).astype(np.float)
+
+            #keep track of previous detections using a heatmap
+            # remove heat if we don't have a current detection at a given location.
+            self.display_heat_map[self.display_heat_map > 0] -= 1
+            self.display_heat_map[(labels[0] > 0) & (self.display_heat_map <= 20)] += 2
+
+            # mask out areas that don't have enough heat (history of detections)
+            mask = np.zeros_like(self.display_heat_map)
+            mask[self.display_heat_map > 8] = 1
+            draw_labels = label(mask)
+            
+            ...
+```
 
 ---
 
@@ -244,5 +286,16 @@ Here's an example result showing the heatmap from a series of frames of video, t
 
 ####1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+One of the biggest issues with my implementation is that it is slow.  Ideally this pipline should run in real time. 
+One technique that could have been used to help make it more efficient is to compute the HOG features once per frame and 
+subsample HOG output for each of the windows.  Additionally I did look at scanning multiple window groups in seperate 
+threads.  The hope was to take advantage of muliple cores.  My estimage is that this alone could have reduced the execution
+time by nearly a third.  Nevertheless, being new to python, I found a reduction in performance.  I 
+suspect this was due to the global interpreter lock.  
 
+Another issue arises from the fact that multiple frames are needed to verify a detection in the current implementation.
+This works fine if the scene changes slowly or if the frame rate is sufficiently high to have repetitions across frames.  On
+the other hand, if the frame rate is reduced (perhaps as an optimisation) or if an object is changing position quickly 
+from frame to frame, the filter which reduces false positives may also filter out legitimate detections as well.  Also 
+the classifier depends on a decent image with little to no motion blur.  This works well in brightly lit scens with fast shutter
+speeds.  Dimly lit scenes with longer shutter speeds may be a problem.
