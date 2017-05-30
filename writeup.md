@@ -81,15 +81,15 @@ In on line 75 of `train_classifier.py` this method is called on the training set
 
 ####2. Explain how you settled on your final choice of HOG parameters.
 
-I settled on my choice of HOG and other feature parameters experimentally.  An intuative approach may have been to look 
+I settled on my choice of HOG and other feature parameters experimentally.  An intuitive approach may have been to look 
 at plots of HOG and other  features and then choose parameters based on my perceptions at the time.  I decided however,
-I would implement the pipline first and then tune parameters based on the behavior of the system at run time.  This 
+I would implement the pipeline first and then tune parameters based on the behavior of the system at run time.  This 
 way, my assumptions would be validated by actual running code. During development, I did however plot images for 
 debugging purposes and to convince myself the system was doing what I thought it should be doing.  
 In the end I chose the following set of parameters.
 
 
-| Prameter          | Value          | 
+| Parameter          | Value          | 
 |:-----------------:|:--------------:| 
 | color space       | YCrCb          |
 | hog channel       | Y (Luminance)  |
@@ -98,7 +98,7 @@ In the end I chose the following set of parameters.
 | spatial bin size  | (32,32)        |
 | # histogram bins  | 32             |
 
-I knew the choice of colorspace would be critical. Because of prior experience, I had an intuition that color 
+I knew the choice of color-space would be critical. Because of prior experience, I had an intuition that color 
 representation needed to include some type of "lightness" value like in HSL or perhaps something else like the value
 component of HLV.  I experimented with all three of channels of RGB, HSV, LUV, and YCrCb.  In the end YCrCb seemed to 
 perform best.  Additionally it seemed the Cr and Cb components were of little value, 
@@ -224,7 +224,7 @@ Here's a [link to my video result](output_images/project_video_output.mp4)
 The `ObjectDetector.get_detections()` method returns a list of windows where the classifier classified the window to 
 contain a vehicle.  Since at time the classifier would produce false positives from time to time, I used two similar 
 techniques to filter these false positives out.
-1. Create a heat map from the detection list and then set a heat threashold.  The assumption here is that overlapping 
+1. Create a heat map from the detection list and then set a heat threshold.  The assumption here is that overlapping 
 windows will create a higher number of detections in a given area making that area more "hot".  False positives 
 are less likely and may be filtered out by setting an appropriate threshold.  This is done once per frame
 2. Create a second heat map that is used to track detections from frame to frame.  Here more heat is added 
@@ -235,7 +235,7 @@ output frame.
 
 The code for the steps outlined above car found in the `process_frame()` at line 45 of `processor.py`
 
-Technique 1 implemented inthe code snippet below
+Technique 1 implemented in the code snippet below
 ```python
     def process_frame(self, image, output_image=None, return_heat_map=False, return_hot_windows=False, process_as_video=True):
         norm_image = cv2.normalize(image, None, 0.0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
@@ -289,7 +289,7 @@ frames such as in a video*
 One of the biggest issues with my implementation is that it is slow.  Ideally this pipline should run in real time. 
 One technique that could have been used to help make it more efficient is to compute the HOG features once per frame and 
 subsample HOG output for each of the windows.  Additionally I did look at scanning multiple window groups in seperate 
-threads.  The hope was to take advantage of muliple cores.  My estimage is that this alone could have reduced the execution
+threads.  The hope was to take advantage of multiple cores.  My estimate is that this alone could have reduced the execution
 time by nearly a third.  Nevertheless, being new to python, I found a reduction in performance.  I 
 suspect this was due to the global interpreter lock.  
 
